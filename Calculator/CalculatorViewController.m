@@ -20,17 +20,96 @@
 @end
 
 @implementation CalculatorViewController
+{
+    NSMutableDictionary *buttons; //A dictionary to store all the buttons, 0-9 are digits, 10-13 are ops, 14-15 sin/cos
+    //16 enter, 17 graph
+    NSArray *buttonnamesL;
+    NSArray *buttonnames;
+    CGRect portraitlocs[sizeof(CGRect)*19];
+    CGRect landscapelocs[sizeof(CGRect)*19];
+}
+
 @synthesize inMiddleOfEnteringNumber = _inMiddleOfEnteringNumber;
 @synthesize display = _display;
 @synthesize brain = _brain;
 @synthesize log = _log;
 @synthesize varNames = _varNames;
 
+#define makeButton(title) UIButton *title = [UIButton buttonWithType:UIButtonTypeRoundedRect]
+
+-(void) setTarget: (UIButton *) but
+{
+    NSString *title = but.currentTitle;
+    if ([title isEqualToString:@"+"] || [title isEqualToString:@"-"] || [title isEqualToString:@"*"] || [title isEqualToString:@"/"] || [title isEqualToString:@"π"]) {
+        [but addTarget:self action:@selector(operationPressed:) forControlEvents:UIControlEventTouchUpInside];
+    }
+    else if ([title isEqualToString:@"x"])
+    {
+        [but addTarget:self action:@selector(varPressed:) forControlEvents:UIControlEventTouchUpInside];
+    }
+    else if ([title isEqualToString:@"Enter"])
+    {
+        [but addTarget:self action:@selector(enterPressed) forControlEvents:UIControlEventTouchUpInside];
+    }
+    else if ([title isEqualToString:@"sin"] || [title isEqualToString:@"cos"])
+    {
+        [but addTarget:self action:@selector(sinPressed:) forControlEvents:UIControlEventTouchUpInside];
+    }
+    else if ([title isEqualToString:@"."]) {
+        [but addTarget:self  action:@selector(enterDecimal:) forControlEvents:UIControlEventTouchUpInside];
+    }
+    else if ([title isEqualToString:@"sqrt"])
+    {
+        [but addTarget:self action:@selector(sqrtPressed:) forControlEvents:UIControlEventTouchUpInside];
+    }
+    else if ([title isEqualToString:@"Graph"])
+    {
+        if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad) {
+            [but addTarget: self action:@selector(graph2) forControlEvents:UIControlEventTouchUpInside];
+        }
+        else {
+            [but addTarget:self action:@selector(graph) forControlEvents:UIControlEventTouchUpInside];
+        }
+    }
+    else if ([title isEqualToString:@"Clear"])
+    {
+        [but addTarget:self action:@selector(clearPressed:) forControlEvents:UIControlEventTouchUpInside];
+    }
+    else if ([title intValue] < 10){
+        [but addTarget:self action:@selector(digitPressed:) forControlEvents:UIControlEventTouchUpInside];
+    }
+    
+}
+#define LEFT_BUTTON_X 20
+#define Y_INCREMENT 55
+#define X_INCREMENT 72
+#define X_INCREMENTH 75
+#define INITIAL_Y 80
+#define BUTTON_W 65
+#define BUTTON_WL 70
+#define BUTTON_H 45
+
 -(void) awakeFromNib
 {
     [super awakeFromNib];
     self.splitViewController.delegate = self;
     self.title = @"Calculator";
+    self.splitViewController.presentsWithGesture = NO;
+    
+    buttons = [[NSMutableDictionary alloc]init];
+    buttonnames = [NSArray arrayWithObjects: @"1", @"2", @"3", @"+", @"4", @"5", @"6",@"-", @"7", @"8", @"9", @"*", @".", @"0", @"π", @"/", @"sin", @"cos",@"sqrt", @"x", @"Undo" ,@"Enter", @"Clear",@"Graph", nil];
+    buttonnamesL = [NSArray arrayWithObjects: @"1", @"2", @"3",  @"+", @"sin",@"Undo" ,@"4",  @"5", @"6", @"-", @"cos", @"Enter", @"7", @"8", @"9", @"*", @"sqrt", @"Clear",@".", @"0", @"π", @"/", @"x", @"Graph", nil];
+    
+    portraitlocs[0] = CGRectMake(LEFT_BUTTON_X, INITIAL_Y, BUTTON_W, BUTTON_H);
+    for (int i = 0; i < [buttonnames count]; i++)
+         portraitlocs[i+1] = ((portraitlocs[i].origin.x + X_INCREMENT) < 280) ? CGRectMake(portraitlocs[i].origin.x + X_INCREMENT, portraitlocs[i].origin.y, BUTTON_W, BUTTON_H) : CGRectMake(LEFT_BUTTON_X, portraitlocs[i].origin.y + Y_INCREMENT, BUTTON_W, BUTTON_H);
+    
+    landscapelocs[0] = CGRectMake(LEFT_BUTTON_X, INITIAL_Y, BUTTON_WL, BUTTON_H);
+    for (int i = 0; i < [buttonnames count]; i++)
+        landscapelocs[i+1] = ((landscapelocs[i].origin.x + X_INCREMENTH) < 450) ? CGRectMake(landscapelocs[i].origin.x + X_INCREMENTH, landscapelocs[i].origin.y, BUTTON_WL, BUTTON_H) : CGRectMake(LEFT_BUTTON_X, landscapelocs[i].origin.y + Y_INCREMENT, BUTTON_WL, BUTTON_H);
+    
+    if (UIInterfaceOrientationIsLandscape(self.interfaceOrientation) && (![UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad)) [self loadButtons:buttonnamesL toLocs: landscapelocs];
+    else [self loadButtons:buttonnames toLocs: portraitlocs];
 }
 
 -(void) viewWillAppear:(BOOL)animated
@@ -175,6 +254,44 @@
     [segue.destinationViewController setTitle:self.log.text];
 }
 
+-(void) didRotateFromInterfaceOrientation:(UIInterfaceOrientation)fromInterfaceOrientation
+{
+    if (!([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad))
+    {
+        if (UIInterfaceOrientationIsLandscape(self.interfaceOrientation)) {
+            [self moveButtons:buttonnamesL toLocs:landscapelocs];
+        }
+        else [self moveButtons:buttonnames toLocs:portraitlocs];
+    }
+    
+}
+
+-(void) moveButtons: (NSArray *) buttonNames toLocs: (CGRect *) locs
+{
+    for (int i = 0; i < [buttonNames count]; i++)
+    {
+        UIButton *temp = [buttons objectForKey:[buttonNames objectAtIndex: i]];
+        temp.frame = locs[i];
+    }
+
+}
+
+
+
+-(void) loadButtons: (NSArray *) buttonNames toLocs: (CGRect *) locs
+{
+    for (int i = 0; i < [buttonNames count]; i++)
+    {
+        UIButton *temp = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+        [temp setTitle: [buttonNames objectAtIndex:i] forState:UIControlStateNormal ];
+        temp.frame = locs[i];
+        [self setTarget: temp];
+        [buttons setObject: temp forKey:[buttonNames objectAtIndex: i]];
+        [self.view addSubview:temp];
+        
+        
+    }
+}
 #pragma mark SplitViewController delegate
 
 - (id <SplitViewBarButtonItemPresenter>)splitViewBarItemPresenter

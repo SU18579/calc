@@ -125,6 +125,7 @@
                 }
                 else CGContextAddLineToPoint(context, point.x, point.y);
             }
+            else move = NO;
 
         }
         else {
